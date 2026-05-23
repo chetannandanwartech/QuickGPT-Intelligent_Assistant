@@ -18,16 +18,16 @@ export const registerUser = async (req, res) => {
         const userExists = await User.findOne({email})
        
         if(userExists){
-            return res.json({sucess: false, message: "user already exists"})
+            return res.json({success: false, message: "user already exists"})
         }
 
         const user = await User.create({name, email, password})
 
         const token = generateToken(user._id)
-        res.json({sucess: true, token})
+        res.json({success: true, token})
 
     } catch (error){
-        return res.json({sucess: false, message: error.message})
+        return res.json({success: false, message: error.message})
     }
 }
 
@@ -47,7 +47,7 @@ export const loginUser = async (req, res) => {
         }
         return res.json({success: false, message: "Invalid email or password"})
     } catch (error) {
-        return res.json({sucess: false, message: error.message})
+        return res.json({success: false, message: error.message})
     }
 }
 
