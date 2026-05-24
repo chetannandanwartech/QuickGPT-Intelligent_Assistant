@@ -1,4 +1,4 @@
-import User from "../models/User";
+import User from "../models/User.js";
 import jwt from 'jsonwebtoken'
 import bcrypt from "bcryptjs";
 
@@ -18,7 +18,7 @@ export const registerUser = async (req, res) => {
         const userExists = await User.findOne({email})
        
         if(userExists){
-            return res.json({success: false, message: "user already exists"})
+            return res.json({success: false, message: "User already exists"})
         }
 
         const user = await User.create({name, email, password})
@@ -59,4 +59,4 @@ export const getUser = async (req, res) =>{
     } catch (error) {
         return res.json({success: false, message: error.message})
     }
-}
+}           
