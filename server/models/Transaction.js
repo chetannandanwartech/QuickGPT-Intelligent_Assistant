@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const transactionSchema = new mongoose.Schema({
     userId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true},
-    palnId: {type: String, required: true},
+    planId: {type: String, required: true},
     amount: {type: Number, required: true},
     credits: {type: Number, required: true},
     isPaid: {type: Boolean, required: false},
@@ -10,4 +10,4 @@ const transactionSchema = new mongoose.Schema({
 
 const Transaction = mongoose.model('Transaction', transactionSchema);
 
-export default Tramsaction;
+export default Transaction;
