@@ -90,7 +90,7 @@ export const imageMessageController = async (req, res) => {
     const base64Image = `data:image/png;base64,${Buffer.from(aiImageResponse.data, "binary").toString("base64")}`;
 
     // Upload to ImageKit Media Library
-    const uploadResponse = await imagekit.upload({
+    const uploadResponse = await imagekit.files.upload({
       file: base64Image,
       fileName: `${Date.now()}.png`,
       folder: "quickgpt",
