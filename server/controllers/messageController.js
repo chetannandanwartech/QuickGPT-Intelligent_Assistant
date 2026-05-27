@@ -7,6 +7,8 @@ import openai from "../configs/openai.js";
 // Text-based AI Chat Message Controller
 export const textMessageController = async (req, res) => {
   try {
+    // R
+    console.log("TEXT CONTROLLER HIT");
     const userId = req.user._id;
 
     // Check credits
@@ -18,6 +20,9 @@ export const textMessageController = async (req, res) => {
     }
 
     const { chatId, prompt } = req.body;
+    // R
+    console.log("CHAT ID:", chatId);
+console.log("PROMPT:", prompt);
 
     const chat = await Chat.findOne({ userId, _id: chatId });
     chat.messages.push({
@@ -28,7 +33,7 @@ export const textMessageController = async (req, res) => {
     });
 
     const { choices } = await openai.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: "gemini-2.0-flash",
       messages: [
         {
           role: "user",
