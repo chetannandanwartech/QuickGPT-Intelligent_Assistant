@@ -33,7 +33,7 @@ console.log("PROMPT:", prompt);
     });
 
     const { choices } = await openai.chat.completions.create({
-      model: "gemini-2.0-flash",
+      model: "gemini-1.5-flash",
       messages: [
         {
           role: "user",
@@ -53,8 +53,17 @@ console.log("PROMPT:", prompt);
     await chat.save();
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
   } catch (error) {
-    res.json({ success: false, message: error.message });
-  }
+  console.log("FULL ERROR:", error);
+  console.log("ERROR RESPONSE:", error.response?.data);
+
+  res.json({
+    success: false,
+    message: error.message,
+  });
+}
+  // catch (error) {
+  //   res.json({ success: false, message: error.message });
+  // }
 };
 
 // Image Generation Message Controller
