@@ -12,7 +12,7 @@ const app = express()
 
 await connectDB()
 
-// Stripe Webhooks — must be registered BEFORE express.json() so the raw body is preserved
+// Stripe Webhooks 
 app.post('/api/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
 
 // Middleware
