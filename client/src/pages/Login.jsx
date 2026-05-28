@@ -36,7 +36,7 @@ const Login = () => {
     >
       {/* Title */}
       <p className="text-2xl font-semibold w-full text-center">
-        <span className="text-purple-600 dark:text-purple-400">Quick</span>GPT{" "}
+        <span className="text-purple-600 dark:text-purple-400">Askio</span>GPT{" "}
         {state === "login" ? "Login" : "Sign Up"}
       </p>
 

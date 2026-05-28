@@ -104,7 +104,7 @@ const Sidebar = ({isMenuOpen, setIsMenuOpen}) => {
         <img src={assets.diamond_icon} className="w-4.5 dark:invert" alt="" />
         <div className="flex flex-col text-sm">
           <p className="text-gray-700 dark:text-white">Credits : {user?.credits}</p>
-          <p className="text-xs text-gray-400 dark:text-white/50">Purchase credits to use QuickGPT</p>
+          <p className="text-xs text-gray-400 dark:text-white/50">Purchase credits to use AskioGPT</p>
         </div>
       </div>
 

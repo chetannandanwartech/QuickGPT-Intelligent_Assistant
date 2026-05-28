@@ -20,7 +20,6 @@ export const textMessageController = async (req, res) => {
     }
 
     const { chatId, prompt } = req.body;
-    console.log("[textMessageController] chatId:", chatId, "| prompt:", prompt);
 
     if (!chatId || !prompt) {
       return res
@@ -28,24 +27,15 @@ export const textMessageController = async (req, res) => {
         .json({ success: false, message: "chatId and prompt are required" });
     }
 
-    // Guard: find chat safely — return 404 if not found
+    // Guard: find chat safely
     const chat = await Chat.findOne({ userId, _id: chatId });
     if (!chat) {
-      console.log("[textMessageController] Chat not found for id:", chatId);
       return res
         .status(404)
         .json({ success: false, message: "Chat not found" });
     }
 
-    // Push user message to chat history
-    chat.messages.push({
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      isImage: false,
-    });
-
-    // ── Call Gemini SDK with model fallback chain ─────────────────────────────
+    // Call Gemini BEFORE writing to DB — only persist on success
     console.log("[textMessageController] Calling Gemini API...");
     const responseText = await generateTextWithFallback(prompt);
     console.log(
@@ -53,16 +43,25 @@ export const textMessageController = async (req, res) => {
       responseText.length
     );
 
-    // Build reply object (frontend-compatible shape)
-    const reply = {
-      role: "assistant",
-      content: responseText,
-      timestamp: Date.now(),
+    const now = Date.now();
+
+    // Build both messages
+    const userMessage = {
+      role: "user",
+      content: prompt,
+      timestamp: now - 1, // ensure ordering
       isImage: false,
     };
 
-    // Persist to MongoDB first, then respond (avoids double-header issues)
-    chat.messages.push(reply);
+    const reply = {
+      role: "assistant",
+      content: responseText,
+      timestamp: now,
+      isImage: false,
+    };
+
+    // Persist both messages atomically
+    chat.messages.push(userMessage, reply);
     await chat.save();
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
     console.log("[textMessageController] Chat saved and credit deducted.");
@@ -71,23 +70,18 @@ export const textMessageController = async (req, res) => {
   } catch (error) {
     console.error("[textMessageController] ERROR:", error.message || error);
 
-    // Detect quota exhaustion (429)
     const statusCode =
       error.status ||
       error.statusCode ||
       (error.response && error.response.status);
 
-    if (
-      statusCode === 429 ||
-      (error.message && error.message.includes("429"))
-    ) {
+    if (statusCode === 429 || (error.message && error.message.includes("429"))) {
       return res.status(429).json({
         success: false,
-        message: "Gemini API quota exhausted. Please try again later.",
+        message: "AI quota exhausted. Please try again later.",
       });
     }
 
-    // Detect invalid/missing API key (400 or 403)
     if (
       statusCode === 400 ||
       statusCode === 403 ||
@@ -102,7 +96,9 @@ export const textMessageController = async (req, res) => {
       });
     }
 
-    return res.json({ success: false, message: error.message || "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Internal server error" });
   }
 };
 
@@ -131,24 +127,15 @@ export const imageMessageController = async (req, res) => {
         .json({ success: false, message: "chatId and prompt are required" });
     }
 
-    // Guard: find chat safely — return 404 if not found
+    // Guard: find chat safely
     const chat = await Chat.findOne({ userId, _id: chatId });
     if (!chat) {
-      console.log("[imageMessageController] Chat not found for id:", chatId);
       return res
         .status(404)
         .json({ success: false, message: "Chat not found" });
     }
 
-    // Push user message
-    chat.messages.push({
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      isImage: false,
-    });
-
-    // ── Generate image via Pollinations.ai (free, no auth required) ───────────
+    // Generate image via Pollinations.ai BEFORE writing to DB
     const encodedPrompt = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 1000000);
     const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=800&height=800&seed=${seed}&nologo=true`;
@@ -157,9 +144,9 @@ export const imageMessageController = async (req, res) => {
 
     const aiImageResponse = await axios.get(pollinationsUrl, {
       responseType: "arraybuffer",
-      timeout: 60000, // 60s timeout — AI image generation can be slow
+      timeout: 60000,
       headers: {
-        "User-Agent": "QuickGPT/1.0",
+        "User-Agent": "AskioGPT/1.0",
       },
     });
 
@@ -170,9 +157,9 @@ export const imageMessageController = async (req, res) => {
       aiImageResponse.headers["content-type"]
     );
 
-    // Detect actual MIME type from response headers (Pollinations may return jpeg or png)
+    // Detect actual MIME type from response headers
     const contentType = aiImageResponse.headers["content-type"] || "image/jpeg";
-    const mimeType = contentType.split(";")[0].trim(); // strip any charset suffix
+    const mimeType = contentType.split(";")[0].trim();
     const ext = mimeType.includes("png") ? "png" : "jpg";
 
     // Convert buffer to base64 data URI for ImageKit upload
@@ -180,25 +167,34 @@ export const imageMessageController = async (req, res) => {
       aiImageResponse.data
     ).toString("base64")}`;
 
-    // Upload to ImageKit media library for permanent URL
+    // Upload to ImageKit for permanent URL
     const uploadResponse = await imagekit.files.upload({
       file: base64Image,
-      fileName: `quickgpt-${Date.now()}.${ext}`,
-      folder: "/quickgpt",
+      fileName: `askiogpt-${Date.now()}.${ext}`,
+      folder: "/askiogpt",
     });
 
     console.log("[imageMessageController] Image uploaded to ImageKit:", uploadResponse.url);
 
+    const now = Date.now();
+
+    const userMessage = {
+      role: "user",
+      content: prompt,
+      timestamp: now - 1,
+      isImage: false,
+    };
+
     const reply = {
       role: "assistant",
       content: uploadResponse.url,
-      timestamp: Date.now(),
+      timestamp: now,
       isImage: true,
       isPublished: !!isPublished,
     };
 
-    // Persist to MongoDB first, then respond
-    chat.messages.push(reply);
+    // Persist both messages atomically — only on success
+    chat.messages.push(userMessage, reply);
     await chat.save();
     await User.updateOne({ _id: userId }, { $inc: { credits: -2 } });
     console.log("[imageMessageController] Chat saved and credits deducted.");
@@ -212,16 +208,14 @@ export const imageMessageController = async (req, res) => {
       error.statusCode ||
       (error.response && error.response.status);
 
-    // ImageKit auth / permission issue
     if (statusCode === 403) {
       return res.status(403).json({
         success: false,
         message:
-          "Image upload failed: ImageKit returned 403. Check IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT in .env.",
+          "Image upload failed: ImageKit returned 403. Check credentials in .env.",
       });
     }
 
-    // Timeout or network error from Pollinations
     if (error.code === "ECONNABORTED" || error.code === "ETIMEDOUT") {
       return res.status(504).json({
         success: false,
@@ -230,6 +224,8 @@ export const imageMessageController = async (req, res) => {
       });
     }
 
-    return res.json({ success: false, message: error.message || "Internal server error" });
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Internal server error" });
   }
 };

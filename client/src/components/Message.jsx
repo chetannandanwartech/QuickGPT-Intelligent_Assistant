@@ -9,9 +9,16 @@ const Message = ({ message }) => {
   const [imgLoaded, setImgLoaded] = useState(false)
   const [imgError, setImgError] = useState(false)
 
-  useEffect(()=>{
+  // Reset image states when message content changes
+  useEffect(() => {
+    setImgLoaded(false)
+    setImgError(false)
+  }, [message.content])
+
+  // Syntax-highlight any code blocks in markdown responses
+  useEffect(() => {
     Prism.highlightAll()
-  },[message.content])
+  }, [message.content])
 
   return (
     <div>
@@ -48,7 +55,7 @@ const Message = ({ message }) => {
                 <img
                   src={message.content}
                   alt="AI generated image"
-                  className={`w-full max-w-md rounded-lg transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'opacity-0 absolute inset-0 w-0 h-0'}`}
+                  className={`w-full max-w-md rounded-lg transition-opacity duration-500 ${imgLoaded ? 'opacity-100' : 'w-0 h-0 overflow-hidden'}`}
                   onLoad={() => setImgLoaded(true)}
                   onError={() => { setImgError(true); setImgLoaded(false); }}
                 />
